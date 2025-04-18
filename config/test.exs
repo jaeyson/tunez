@@ -1,4 +1,5 @@
 import Config
+config :tunez, token_signing_secret: "lnGLns77RuxvgMgvZozmazjNswxzQpQ9"
 
 # Configure your database
 #
