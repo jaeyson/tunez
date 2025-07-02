@@ -7,27 +7,46 @@ defmodule TunezWeb.Artists.ShowLive do
     {:ok, socket}
   end
 
-  def handle_params(_params, _url, socket) do
-    artist = %{
-      id: "test-artist-1",
-      name: "Artist Name",
-      biography: "Sample biography content here"
-    }
-
-    albums = [
-      %{
-        id: "test-album-1",
-        name: "Test Album",
-        year_released: 2023,
-        cover_image_url: nil
-      }
-    ]
-
+  def handle_params(%{"id" => "new"}, _url, socket) do
     socket =
       socket
-      |> assign(:artist, artist)
-      |> assign(:albums, albums)
-      |> assign(:page_title, artist.name)
+      |> put_flash(:error, "Error accessing page")
+      |> redirect(to: ~p"/")
+
+    {:noreply, socket}
+  end
+
+  def handle_params(%{"id" => artist_id}, _url, socket) do
+    socket =
+      case Tunez.Music.get_artist_by_id(artist_id,
+             load: [:followed_by_me, albums: [:duration, :tracks]],
+             actor: socket.assigns.current_user
+           ) do
+        {:ok, artist} ->
+          socket
+          |> assign(:artist, artist)
+          |> assign(:page_title, artist.name)
+
+        {:error, error} ->
+          error
+          |> Exception.message()
+          |> Logger.error()
+
+          socket
+          |> put_flash(:error, "Error accessing page")
+          |> redirect(to: ~p"/")
+      end
+
+    # artist =
+    #   Tunez.Music.get_artist_by_id!(artist_id,
+    #     load: [:albums],
+    #     actor: socket.assigns.current_user
+    #   )
+
+    # socket =
+    #   socket
+    #   |> assign(:artist, artist)
+    #   |> assign(:page_title, artist.name)
 
     {:noreply, socket}
   end
@@ -38,8 +57,20 @@ defmodule TunezWeb.Artists.ShowLive do
       <.header>
         <.h1>
           {@artist.name}
+          <.follow_toggle
+            if={Tunez.Music.can_follow_artist?(@current_user, @artist)}
+            on={@artist.followed_by_me}
+          />
         </.h1>
-        <:action>
+        <:subtitle :if={@artist.previous_names != []}>
+          formerly known as:
+          <%= for previous_name <- @artist.previous_names do %>
+            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-gray-500/10 ring-inset">
+              {previous_name}
+            </span>
+          <% end %>
+        </:subtitle>
+        <:action :if={Tunez.Music.can_destroy_artist?(@current_user, @artist)}>
           <.button_link
             kind="error"
             inverse
@@ -49,7 +80,7 @@ defmodule TunezWeb.Artists.ShowLive do
             Delete Artist
           </.button_link>
         </:action>
-        <:action>
+        <:action :if={Tunez.Music.can_update_artist?(@current_user, @artist)}>
           <.button_link navigate={~p"/artists/#{@artist.id}/edit"} kind="primary" inverse>
             Edit Artist
           </.button_link>
@@ -57,13 +88,17 @@ defmodule TunezWeb.Artists.ShowLive do
       </.header>
       <div class="mb-6">{formatted(@artist.biography)}</div>
 
-      <.button_link navigate={~p"/artists/#{@artist.id}/albums/new"} kind="primary">
+      <.button_link
+        :if={Tunez.Music.can_create_album?(@current_user)}
+        navigate={~p"/artists/#{@artist.id}/albums/new"}
+        kind="primary"
+      >
         New Album
       </.button_link>
 
       <ul class="mt-10 space-y-6 md:space-y-10">
-        <li :for={album <- @albums}>
-          <.album_details album={album} />
+        <li :for={album <- @artist.albums}>
+          <.album_details album={album} current_user={@current_user} />
         </li>
       </ul>
     </Layouts.app>
@@ -80,8 +115,9 @@ defmodule TunezWeb.Artists.ShowLive do
         <.header class="pl-3 pr-2 !m-0">
           <.h2>
             {@album.name} ({@album.year_released})
+            <span :if={@album.duration} class="text-base">({@album.duration})</span>
           </.h2>
-          <:action>
+          <:action :if={Tunez.Music.can_destroy_album?(@current_user, @album)}>
             <.button_link
               size="sm"
               inverse
@@ -93,13 +129,13 @@ defmodule TunezWeb.Artists.ShowLive do
               Delete
             </.button_link>
           </:action>
-          <:action>
+          <:action :if={Tunez.Music.can_update_album?(@current_user, @album)}>
             <.button_link size="sm" kind="primary" inverse navigate={~p"/albums/#{@album.id}/edit"}>
               Edit
             </.button_link>
           </:action>
         </.header>
-        <.track_details tracks={[]} />
+        <.track_details tracks={@album.tracks} />
       </div>
     </div>
     """
@@ -110,10 +146,10 @@ defmodule TunezWeb.Artists.ShowLive do
     <table :if={@tracks != []} class="w-full mt-2 -z-10">
       <tr :for={track <- @tracks} class="border-t first:border-0 border-gray-100">
         <th class="whitespace-nowrap w-1 p-3">
-          {String.pad_leading("#{track.order}", 2, "0")}.
+          {String.pad_leading("#{track.number}", 2, "0")}.
         </th>
         <td class="p-3">{track.name}</td>
-        <td class="whitespace-nowrap w-1 text-right p-2">{track.duration_seconds}</td>
+        <td class="whitespace-nowrap w-1 text-right p-2">{track.duration}</td>
       </tr>
     </table>
     <div :if={@tracks == []} class="p-8 text-center italic text-gray-400">
@@ -152,18 +188,78 @@ defmodule TunezWeb.Artists.ShowLive do
   end
 
   def handle_event("destroy-artist", _params, socket) do
+    artist = socket.assigns.artist
+
+    socket =
+      case Tunez.Music.destroy_artist(artist, actor: socket.assigns.current_user) do
+        :ok ->
+          socket
+          |> put_flash(:info, "Artist deleted successfully")
+          |> push_navigate(to: ~p"/")
+
+        {:error, error} ->
+          Logger.info("Could not delete artist #{artist.name}: #{inspect(error)}")
+
+          socket
+          |> put_flash(:error, "Could not delete artist")
+      end
+
     {:noreply, socket}
   end
 
-  def handle_event("destroy-album", _params, socket) do
+  def handle_event("destroy-album", %{"id" => album_id}, socket) do
+    socket =
+      case Tunez.Music.destroy_album(album_id, actor: socket.assigns.current_user) do
+        :ok ->
+          socket
+          |> update(:artist, fn artist ->
+            Map.update!(artist, :albums, fn albums ->
+              Enum.reject(albums, &(&1.id == album_id))
+            end)
+          end)
+          |> put_flash(:info, "Album deleted successfully")
+
+        {:error, error} ->
+          Logger.info("Could not delete album: #{inspect(error)}")
+
+          socket
+          |> put_flash(:error, "Could not delete album")
+      end
+
     {:noreply, socket}
   end
 
-  def handle_event("follow", _params, socket) do
+  def handle_event(
+        "follow",
+        _params,
+        %{assigns: %{artist: artist, current_user: current_user}} = socket
+      ) do
+    socket =
+      case Tunez.Music.follow_artist(artist, actor: current_user) do
+        {:ok, _} ->
+          update(socket, :artist, &%{&1 | followed_by_me: true})
+
+        {:error, _} ->
+          put_flash(socket, :error, "Could not follow artist")
+      end
+
     {:noreply, socket}
   end
 
-  def handle_event("unfollow", _params, socket) do
+  def handle_event(
+        "unfollow",
+        _params,
+        %{assigns: %{artist: artist, current_user: current_user}} = socket
+      ) do
+    socket =
+      case Tunez.Music.unfollow_artist(artist, actor: current_user) do
+        :ok ->
+          update(socket, :artist, &%{&1 | followed_by_me: false})
+
+        {:error, _} ->
+          put_flash(socket, :error, "Could not unfollow artist")
+      end
+
     {:noreply, socket}
   end
 end

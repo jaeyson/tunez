@@ -173,27 +173,36 @@ defmodule TunezWeb.Music.AlbumTest do
 
   describe "validations" do
     @tag :skip
+    test "year_released must be greater than 1950" do
+      Album
+      |> Ash.Changeset.for_create(:create, %{year_released: 1920})
+      |> assert_has_error(fn error ->
+        match?(%{message: "must be between 1950 and" <> _}, error)
+      end)
+    end
+
+    @tag :skip
     test "year_released must be between 1950 and now" do
-      # admin = generate(user(role: :admin))
-      # artist = generate(artist())
+      admin = generate(user(role: :admin))
+      artist = generate(artist())
 
-      # # The assertion isn't really needed here, but we want to signal to
-      # # our future selves that this is part of the test, not the setup.
-      # assert %{artist_id: artist.id, name: "test 2024", year_released: 2024}
-      #        |> Music.create_album!(actor: admin)
+      # The assertion isn't really needed here, but we want to signal to
+      # our future selves that this is part of the test, not the setup.
+      assert %{artist_id: artist.id, name: "test 2024", year_released: 2024}
+             |> Music.create_album!(actor: admin)
 
-      # # Using `assert_raise`
-      # assert_raise Ash.Error.Invalid, ~r/must be between 1950 and next year/, fn ->
-      #   %{artist_id: artist.id, name: "test 1925", year_released: 1925}
-      #   |> Music.create_album!(actor: admin)
-      # end
+      # Using `assert_raise`
+      assert_raise Ash.Error.Invalid, ~r/must be between 1950 and next year/, fn ->
+        %{artist_id: artist.id, name: "test 1925", year_released: 1925}
+        |> Music.create_album!(actor: admin)
+      end
 
-      # # Using `assert_has_error` - note the lack of bang to return the error
-      # %{artist_id: artist.id, name: "test 1950", year_released: 1950}
-      # |> Music.create_album(actor: admin)
-      # |> Ash.Test.assert_has_error(Ash.Error.Invalid, fn error ->
-      #   match?(%{message: "must be between 1950 and next year"}, error)
-      # end)
+      # Using `assert_has_error` - note the lack of bang to return the error
+      %{artist_id: artist.id, name: "test 1950", year_released: 1950}
+      |> Music.create_album(actor: admin)
+      |> Ash.Test.assert_has_error(Ash.Error.Invalid, fn error ->
+        match?(%{message: "must be between 1950 and next year"}, error)
+      end)
     end
 
     @tag :skip

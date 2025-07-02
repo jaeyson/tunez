@@ -8,7 +8,15 @@ config :tunez, Tunez.Repo,
   database: "tunez_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
+  timeout: :timer.minutes(30),
   pool_size: 10
+
+# config :ash_authentication,
+#   debug_authentication_failures?: true
+
+# config :ash, :policies,
+#   show_policy_breakdowns?: true,
+#   log_policy_breakdowns: :error
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -63,7 +71,7 @@ config :tunez, TunezWeb.Endpoint,
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :tunez, dev_routes: true
+config :tunez, dev_routes: true, token_signing_secret: "3OHJfjD+Ii01wBAOF96EbzzDfbUUZbza"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

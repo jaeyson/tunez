@@ -6,7 +6,7 @@ defmodule Tunez.Music.ArtistTest do
   describe "Tunez.Music.read_artists!/0-2" do
     @tag :skip
     test "when there is no data, nothing is returned" do
-      # assert Music.read_artists!() == []
+      assert Music.read_artists!() == []
     end
   end
 
@@ -15,12 +15,18 @@ defmodule Tunez.Music.ArtistTest do
 
     @tag :skip
     test "can filter by partial name matches" do
-      # ["hello", "goodbye", "what?"]
-      # |> Enum.each(&generate(artist(name: &1)))
+      ["hello", "goodbye", "what?"]
+      |> Enum.each(&generate(artist(name: &1)))
 
-      # assert Enum.sort(names(Music.search_artists!("o"))) == ["goodbye", "hello"]
-      # assert names(Music.search_artists!("oo")) == ["goodbye"]
-      # assert names(Music.search_artists!("he")) == ["hello"]
+      assert Enum.sort(names(Music.search_artists!("o"))) == ["goodbye", "hello"]
+      assert names(Music.search_artists!("oo")) == ["goodbye"]
+      assert names(Music.search_artists!("he")) == ["hello"]
+    end
+
+    @tag :skip
+    test "name_length shows how many characters are in the name" do
+      assert Tunez.Music.artist_name_length!("fred") == 4
+      assert Tunez.Music.artist_name_length!("wat") == 3
     end
 
     @tag :skip
@@ -71,15 +77,15 @@ defmodule Tunez.Music.ArtistTest do
 
     @tag :skip
     test "can sort by number of album releases" do
-      # generate(artist(name: "two", album_count: 2))
-      # generate(artist(name: "none"))
-      # generate(artist(name: "one", album_count: 1))
-      # generate(artist(name: "three", album_count: 3))
+      generate(artist(name: "two", album_count: 2))
+      generate(artist(name: "none"))
+      generate(artist(name: "one", album_count: 1))
+      generate(artist(name: "three", album_count: 3))
 
-      # actual =
-      #   names(Music.search_artists!("", query: [sort_input: "-album_count"]))
+      actual =
+        names(Music.search_artists!("", query: [sort_input: "-album_count"]))
 
-      # assert actual == ["three", "two", "one", "none"]
+      assert actual == ["three", "two", "one", "none"]
     end
 
     @tag :skip
@@ -99,11 +105,11 @@ defmodule Tunez.Music.ArtistTest do
   describe "Tunez.Music.create_artist/1-2" do
     @tag :skip
     test "stores the actor that created the record" do
-      # actor = generate(user(role: :admin))
+      actor = generate(user(role: :admin))
 
-      # artist = Music.create_artist!(%{name: "New Artist"}, actor: actor)
-      # assert artist.created_by_id == actor.id
-      # assert artist.updated_by_id == actor.id
+      artist = Music.create_artist!(%{name: "New Artist"}, actor: actor)
+      assert artist.created_by_id == actor.id
+      assert artist.updated_by_id == actor.id
     end
   end
 
@@ -184,22 +190,22 @@ defmodule Tunez.Music.ArtistTest do
   end
 
   describe "policies" do
-    # def setup_users do
-    #   %{
-    #     admin: generate(user(role: :admin)),
-    #     editor: generate(user(role: :editor)),
-    #     user: generate(user(role: :user))
-    #   }
-    # end
+    def setup_users do
+      %{
+        admin: generate(user(role: :admin)),
+        editor: generate(user(role: :editor)),
+        user: generate(user(role: :user))
+      }
+    end
 
     @tag skip: "Also uncomment the `setup_users` function above"
     test "only admins can create new artists" do
-      # users = setup_users()
+      users = setup_users()
 
-      # assert Music.can_create_artist?(users.admin)
-      # refute Music.can_create_artist?(users.editor)
-      # refute Music.can_create_artist?(users.user)
-      # refute Music.can_create_artist?(nil)
+      assert Music.can_create_artist?(users.admin)
+      refute Music.can_create_artist?(users.editor)
+      refute Music.can_create_artist?(users.user)
+      refute Music.can_create_artist?(nil)
     end
 
     @tag skip: "Also uncomment the `setup_users` function above"
