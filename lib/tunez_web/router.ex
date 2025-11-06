@@ -37,18 +37,18 @@ defmodule TunezWeb.Router do
     #
     # If an authenticated user must *not* be present:
     # on_mount {TunezWeb.LiveUserAuth, :live_no_user}
-    ash_authentication_live_session :auth_optional,
-      on_mount: {TunezWeb.LiveUserAuth, :live_user_optional} do
-      live "/", Artists.IndexLive
-      live "/artists/:id", Artists.ShowLive
-    end
-
     ash_authentication_live_session :user_required,
       on_mount: {TunezWeb.LiveUserAuth, :live_user_required} do
       live "/artists/new", Artists.FormLive, :new
       live "/artists/:id/edit", Artists.FormLive, :edit
       live "/artists/:artist_id/albums/new", Albums.FormLive, :new
       live "/albums/:id/edit", Albums.FormLive, :edit
+    end
+
+    ash_authentication_live_session :auth_optional,
+      on_mount: {TunezWeb.LiveUserAuth, :live_user_optional} do
+      live "/", Artists.IndexLive
+      live "/artists/:id", Artists.ShowLive
     end
 
     # ash_authentication_live_session :admin_required,

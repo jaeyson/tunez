@@ -7,46 +7,17 @@ defmodule TunezWeb.Artists.ShowLive do
     {:ok, socket}
   end
 
-  def handle_params(%{"id" => "new"}, _url, socket) do
+  def handle_params(%{"id" => artist_id}, _url, socket) do
+    artist =
+      Tunez.Music.get_artist_by_id!(artist_id,
+        load: [:albums],
+        actor: socket.assigns.current_user
+      )
+
     socket =
       socket
-      |> put_flash(:error, "Error accessing page")
-      |> redirect(to: ~p"/")
-
-    {:noreply, socket}
-  end
-
-  def handle_params(%{"id" => artist_id}, _url, socket) do
-    socket =
-      case Tunez.Music.get_artist_by_id(artist_id,
-             load: [:followed_by_me, albums: [:duration, :tracks]],
-             actor: socket.assigns.current_user
-           ) do
-        {:ok, artist} ->
-          socket
-          |> assign(:artist, artist)
-          |> assign(:page_title, artist.name)
-
-        {:error, error} ->
-          error
-          |> Exception.message()
-          |> Logger.error()
-
-          socket
-          |> put_flash(:error, "Error accessing page")
-          |> redirect(to: ~p"/")
-      end
-
-    # artist =
-    #   Tunez.Music.get_artist_by_id!(artist_id,
-    #     load: [:albums],
-    #     actor: socket.assigns.current_user
-    #   )
-
-    # socket =
-    #   socket
-    #   |> assign(:artist, artist)
-    #   |> assign(:page_title, artist.name)
+      |> assign(:artist, artist)
+      |> assign(:page_title, artist.name)
 
     {:noreply, socket}
   end
